@@ -18,7 +18,5 @@ try {
     })
 }
 
-console.log(firebaseApp, serviceAccount)
-
 export const auth = getAuth(firebaseApp)
 export const db = getFirestore(firebaseApp)

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
 	import { app } from '../app.svelte';
 	import TaskCard from './TaskCard.svelte';
 
 	let init_error = $state('');
 
-	$effect(() => {
-		init_error = '';
+	onMount(() => {
 		app()
 			.ensureTasksLoaded()
 			.catch((error) => {
