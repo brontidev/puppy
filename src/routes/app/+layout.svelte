@@ -5,6 +5,7 @@
 	import { AuthGuard, firekitAuth } from 'svelte-firekit';
 	import EditNameModal from './EditNameModal.svelte';
 	import { app } from './app.svelte';
+	import { APP_VERSION } from '$lib/version';
 
 app()
 
@@ -62,7 +63,7 @@ app()
 			hidden
 			bind:checked={is_drawer_open}
 		/>
-		<div class="drawer-content">
+		<div class="drawer-content bg-base-100">
 			<div class="flex h-screen flex-col">
 				<div class="flex flex-row items-center gap-x-4 bg-base-200 px-4 py-2 font-bold">
 					<span>🐶</span>
@@ -123,6 +124,9 @@ app()
 					>edit name</button
 				>
 				<button onclick={do_logout} class="btn mt-2 btn-outline btn-error">log out</button>
+				<div class="mt-auto flex items-center justify-center pt-4">
+					<span class="text-xs opacity-50">v{APP_VERSION}</span>
+				</div>
 			</div>
 		</div>
 	</div>

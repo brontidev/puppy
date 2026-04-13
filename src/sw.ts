@@ -6,6 +6,8 @@ import { registerRoute } from "workbox-routing";
 import { CacheFirst, NetworkFirst } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
+console.log('defined sw')
+
 // Precache static assets
 precacheAndRoute(self.__WB_MANIFEST || []);
 
