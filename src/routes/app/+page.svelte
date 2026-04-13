@@ -4,15 +4,14 @@
 	import TaskCard from './tasks/TaskCard.svelte';
 
 	let relation_loading = $derived(app().relation.loading);
-	let puppyscore = $derived(app().relation.data?.puppyscore)
+	let puppyscore = $derived(app().relation.data?.puppyscore);
 
 	const tasks = $derived(
-		app().recent_tasks
-			.filter((task) => app().role == 'dom' || !task.marked_at)
+		app()
+			.recent_tasks.filter((task) => app().role == 'dom' || !task.marked_at)
 			.slice(0, 6)
 	);
 	const tasks_loading = $derived(app().new_tasks.loading);
-
 </script>
 
 <div class="flex h-full flex-col gap-y-4 p-4">
@@ -22,16 +21,16 @@
 			{#if relation_loading}
 				<div class="text-sm opacity-70">loading score...</div>
 			{:else}
-			<div
-				class={[
-					'card flex size-30 items-center justify-center rounded-full text-4xl',
-					puppyscore == 0 && 'bg-neutral text-neutral-content',
-					puppyscore > 0 && 'bg-success text-success-content',
-					puppyscore < 0 && 'bg-error text-error-content'
-				]}
-			>
-				{puppyscore}
-			</div>
+				<div
+					class={[
+						'card flex size-30 items-center justify-center rounded-full text-4xl',
+						puppyscore == 0 && 'bg-neutral text-neutral-content',
+						puppyscore > 0 && 'bg-success text-success-content',
+						puppyscore < 0 && 'bg-error text-error-content'
+					]}
+				>
+					{puppyscore}
+				</div>
 			{/if}
 		</div>
 	</div>

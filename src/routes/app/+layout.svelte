@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
 	import { add_toast } from '$lib/toast.svelte';
 	import { AuthGuard, firekitAuth } from 'svelte-firekit';
 	import EditNameModal from './EditNameModal.svelte';
 	import { app } from './app.svelte';
-	import { APP_VERSION } from '$lib/version';
+	import { get_app_version } from '$lib/version.remote';
 
-app()
+	app();
 
 	let { children } = $props();
 
@@ -17,6 +18,7 @@ app()
 
 	let login_code = '<not implemented>';
 	let join_code = $derived(app().relation.data?.join_code);
+	let app_version = $state('');
 
 	let role = $derived(app().role);
 	let you_name = $derived(
@@ -25,6 +27,10 @@ app()
 	let other_name = $derived(
 		role === 'dom' ? app().relation.data?.sub_name : app().relation.data?.dom_name
 	);
+
+	onMount(async () => {
+		app_version = await get_app_version();
+	});
 
 	async function copy_login_code() {
 		navigator.clipboard.writeText(login_code!);
@@ -37,12 +43,12 @@ app()
 	}
 
 	async function do_logout() {
-		firekitAuth.signOut()
+		firekitAuth.signOut();
 		is_drawer_open = false;
 	}
 
 	$effect(() => {
-		if(edit_name_modal) {
+		if (edit_name_modal) {
 			edit_name_modal.open = is_modal_open;
 		}
 	});
@@ -125,7 +131,7 @@ app()
 				>
 				<button onclick={do_logout} class="btn mt-2 btn-outline btn-error">log out</button>
 				<div class="mt-auto flex items-center justify-center pt-4">
-					<span class="text-xs opacity-50">v{APP_VERSION}</span>
+					<span class="text-xs opacity-50">v{app_version}</span>
 				</div>
 			</div>
 		</div>

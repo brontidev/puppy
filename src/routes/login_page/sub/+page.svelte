@@ -4,21 +4,21 @@
 	import { firekitAuth } from 'svelte-firekit';
 	import Button from '../Button.svelte';
 
-
 	let join_code = $state('');
 	let name = $state('');
 
 	async function join_btn() {
 		const token = await join_relation({ join_code, name });
-		if(!token) return add_toast({ body: "Partner not found", state: false })
-		firekitAuth.signInWithCustomToken(token)
+		if (!token) return add_toast({ body: 'Partner not found', state: false });
+		firekitAuth.signInWithCustomToken(token);
 	}
 
 	let login_code = $state('');
 	async function on_login() {
-		const token = await login({ login_code, role: "sub" })
-		if(!token) return add_toast({ body: "Login code not found!", state: false })
-		firekitAuth.signInWithCustomToken(token)	}
+		const token = await login({ login_code, role: 'sub' });
+		if (!token) return add_toast({ body: 'Login code not found!', state: false });
+		firekitAuth.signInWithCustomToken(token);
+	}
 </script>
 
 <h1 class="text-2xl font-bold">sub</h1>

@@ -1,7 +1,6 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 
-import type { schema } from "$lib/server/db";
-
+import type { schema } from '$lib/server/db';
 
 // for information about these interfaces
 declare global {
@@ -14,4 +13,4 @@ declare global {
 	}
 }
 
-export { };
+export {};

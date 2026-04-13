@@ -1,6 +1,5 @@
 <script lang="ts">
 	import './layout.css';
-	import PWAInstallPrompt from '$lib/PWAInstallPrompt.svelte';
 	import PWAUpdatePrompt from '$lib/PWAUpdatePrompt.svelte';
 
 	let { children } = $props();
@@ -10,9 +9,9 @@
 	import { FirebaseApp } from 'svelte-firekit';
 	import { firebaseConfig } from '$lib/firebase';
 
-	import { registerSW } from 'virtual:pwa-register'
+	import { registerSW } from 'virtual:pwa-register';
 
-	registerSW({ immediate: true })
+	registerSW({ immediate: true });
 
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
@@ -24,10 +23,8 @@
 			});
 		});
 	});
-
 </script>
 
-<PWAInstallPrompt />
 <PWAUpdatePrompt />
 
 <div class="toast toast-center z-99">

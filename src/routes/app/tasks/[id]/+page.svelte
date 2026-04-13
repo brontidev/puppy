@@ -14,37 +14,37 @@
 	let marking = $state(false);
 	let error = $state('');
 
-
-	let task_doc = firekitDoc<Task & { id: string }>(`relations/${app().relation_id}/tasks/${task_id}`)
-	let task = $derived(task_doc.data ? { ...task_doc.data, id: task_doc.id }: null)
+	let task_doc = firekitDoc<Task & { id: string }>(
+		`relations/${app().relation_id}/tasks/${task_id}`
+	);
+	let task = $derived(task_doc.data ? { ...task_doc.data, id: task_doc.id } : null);
 	const loading = $derived(task_doc.loading);
 
 	$effect(() => {
-		task_doc.setPath(`relations/${app().relation_id}/tasks/${task_id}`)
-	})
+		task_doc.setPath(`relations/${app().relation_id}/tasks/${task_id}`);
+	});
 
 	$effect(() => {
 		error = '';
-		if(!task_doc.loading && !task_doc.exists) {
-			add_toast({ body: "Task not found", state: false })
-			goto(resolve('/app/tasks'))
+		if (!task_doc.loading && !task_doc.exists) {
+			add_toast({ body: 'Task not found', state: false });
+			goto(resolve('/app/tasks'));
 		}
-	})
-
+	});
 
 	async function mark(completed: boolean) {
 		if (!task_doc.data || marking || task_doc.data.marked_at) return;
 
-		marking = true
+		marking = true;
 		await mark_task({
 			mark: completed,
 			relation_id: app().relation_id!,
 			task_id: task_id!
-		})
-		marking = false
+		});
+		marking = false;
 	}
 
-	$inspect(task_doc.data)
+	$inspect(task_doc.data);
 </script>
 
 <div class="flex flex-row justify-between px-4 pt-4">
