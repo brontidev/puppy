@@ -34,9 +34,6 @@
 	{/each}
 </div>
 
-
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
-
 <FirebaseApp config={firebaseConfig}>
 	{@render children()}
 </FirebaseApp>
