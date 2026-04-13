@@ -1,61 +1,66 @@
 import { getMessaging } from 'firebase-admin/messaging';
 import { db } from './firebase';
-import type { Relation } from '../firestore-schema';
+import type { FcmToken } from '../firestore-schema';
 
 export const sendTaskNotification = async (relationId: string, title: string, body: string) => {
 	try {
-		// Get the relation document to find sub's FCM token
-		const relationDoc = await db.collection('relations').doc(relationId).get();
+		// Get all enabled FCM tokens for this relation
+		const tokensSnapshot = await db
+			.collection('fcm_tokens')
+			.where('relationId', '==', relationId)
+			.where('enabled', '==', true)
+			.get();
 
-		if (!relationDoc.exists) {
-			console.error('Relation not found:', relationId);
+		if (tokensSnapshot.empty) {
+			console.log('No enabled FCM tokens for relation:', relationId);
 			return;
 		}
 
-		const relation = relationDoc.data() as Relation;
-		if (!relation.sub_fcm_token) {
-			console.log('No FCM token for sub user:', relationId);
-			return;
-		}
-
-		// Send notification via Firebase Cloud Messaging
+		// Send notification to all enabled devices
 		const messaging = getMessaging();
-		const response = await messaging.send({
-			token: relation.sub_fcm_token,
+		for (const doc of tokensSnapshot.docs) {
+			const tokenData = doc.data() as FcmToken;
+			const token = tokenData.token;
+			try {
+				const response = await messaging.send({
+					token,
 			notification: {
 				title,
 				body
 			},
-			data: {
-				relationId,
-				type: 'task_update'
-			},
-			android: {
-				priority: 'high',
-				notification: {
-					sound: 'default',
-					channelId: 'task_notifications'
-				}
-			},
-			apns: {
-				headers: {
-					'apns-priority': '10'
-				},
-				payload: {
-					aps: {
-						sound: 'default',
-						badge: 1
+					data: {
+						relationId,
+						type: 'task_update'
+					},
+					android: {
+						priority: 'high',
+						notification: {
+							sound: 'default',
+							channelId: 'task_notifications'
+						}
+					},
+					apns: {
+						headers: {
+							'apns-priority': '10'
+						},
+						payload: {
+							aps: {
+								sound: 'default',
+								badge: 1
+							}
+						}
+					},
+					webpush: {
+						headers: {
+							TTL: '86400' // 24 hours
+						}
 					}
-				}
-			},
-			webpush: {
-				headers: {
-					TTL: '86400' // 24 hours
-				}
+				});
+				console.log('Notification sent to device:', token.slice(0, 10), response);
+			} catch (deviceError) {
+				console.error('Failed to send to token:', token.slice(0, 10), deviceError);
 			}
-		});
-
-		console.log('Notification sent:', response);
+		}
 	} catch (error) {
 		console.error('Failed to send notification:', error);
 	}

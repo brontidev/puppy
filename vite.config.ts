@@ -10,6 +10,9 @@ export default defineConfig({
 		SvelteKitPWA({
 			injectRegister: 'auto',
 			registerType: 'autoUpdate',
+            strategies: "injectManifest",
+            srcDir: "src",
+            filename: "sw.ts",
 			manifest: {
 				name: 'puppy',
 				short_name: 'puppy',
@@ -48,14 +51,13 @@ export default defineConfig({
 				]
 			},
 			workbox: {
-				globPatterns: ['client/**/*.{js,css,ico,png,svg,eot,otf,ttf,woff,woff2}'],
+				globPatterns: ['client/**/*.{js,css,ico,png,svg,eot,otf,ttf,woff,woff2}', '/'],
 				navigateFallback: '/',
 				cleanupOutdatedCaches: true
 			},
 			devOptions: {
 				enabled: true,
-				suppressWarnings: true,
-				navigateFallbackAllowlist: [/^\/login_page\//]
+				type: 'module'
 			}
 		})
 	]

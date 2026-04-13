@@ -5,7 +5,13 @@ export type Relation = {
 	dom_name: string;
 	sub_name: string;
 	puppyscore: number;
-	sub_fcm_token?: string;
+};
+
+export type FcmToken = {
+	relationId: string;
+	token: string;
+	enabled: boolean;
+	createdAt: Date;
 };
 
 export type RelationKeys = {

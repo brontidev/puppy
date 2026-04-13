@@ -2,36 +2,11 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import { precacheAndRoute } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { CacheFirst, NetworkFirst } from 'workbox-strategies';
-import { ExpirationPlugin } from 'workbox-expiration';
 
 console.log('defined sw');
 
 // Precache static assets
 precacheAndRoute(self.__WB_MANIFEST || []);
-
-// Cache images with CacheFirst strategy
-registerRoute(
-	({ request }) => request.destination === 'image',
-	new CacheFirst({
-		cacheName: 'images',
-		plugins: [
-			new ExpirationPlugin({
-				maxEntries: 60,
-				maxAgeSeconds: 60 * 24 * 3600 // 60 days
-			})
-		]
-	})
-);
-
-// API calls with NetworkFirst strategy
-registerRoute(
-	({ url }) => url.pathname.startsWith('/api'),
-	new NetworkFirst({
-		cacheName: 'api'
-	})
-);
 
 self.addEventListener('message', (event) => {
 	if (event.data && event.data.type === 'SKIP_WAITING') {
@@ -52,7 +27,7 @@ self.addEventListener('push', (event) => {
 			data: data.data || {}
 		};
 
-		event.waitUntil(self.registration.showNotification(data.title || 'Puppy', options));
+		event.waitUntil(self.registration.showNotification(data.title || 'puppy', options));
 	}
 });
 

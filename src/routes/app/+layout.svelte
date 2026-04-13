@@ -7,6 +7,8 @@
 	import EditNameModal from './EditNameModal.svelte';
 	import { app } from './app.svelte';
 	import { get_app_version } from '$lib/version.remote';
+	import { initMessaging, listenForMessages } from '$lib/notifications';
+	import NotificationSettings from '$lib/NotificationSettings.svelte';
 
 	app();
 
@@ -15,6 +17,8 @@
 	let is_drawer_open = $state(false);
 	let is_modal_open = $state(false);
 	let edit_name_modal = $state<HTMLDialogElement>();
+	let fcm_token = $state<string | null>(null);
+	let notifications_enabled = $state(false);
 
 	let login_code = '<not implemented>';
 	let join_code = $derived(app().relation.data?.join_code);
@@ -30,6 +34,21 @@
 
 	onMount(async () => {
 		app_version = await get_app_version();
+
+		// Initialize push notifications for sub user
+		if (role === 'sub') {
+			const relationId = app().relation_id;
+
+			if (relationId) {
+				const token = await initMessaging(relationId);
+				if (token) {
+					fcm_token = token;
+					notifications_enabled = true;
+					add_toast({ body: 'Notifications enabled! 🔔', state: true });
+					listenForMessages();
+				}
+			}
+		}
 	});
 
 	async function copy_login_code() {
@@ -112,6 +131,10 @@
 					<div class="text-lg font-bold">{other_name || '(not connected yet)'}</div>
 					<div class="mt-2 text-xs opacity-70">role: {role}</div>
 				</div>
+
+				{#if role === 'sub'}
+					<NotificationSettings enabled={notifications_enabled} fcmToken={fcm_token || ''} />
+				{/if}
 
 				{#if role == 'dom' && join_code}
 					<button onclick={copy_join_code} class="btn card h-20 bg-base-300 px-4 py-2 font-bold">
