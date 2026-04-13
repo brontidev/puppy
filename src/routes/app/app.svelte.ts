@@ -1,179 +1,86 @@
-import { getContext, setContext } from 'svelte';
-import type { AuthState } from '$lib/auth.svelte';
-import type { schema } from '$lib/server/db';
-import { get_task, list_tasks, mark_task } from './tasks/tasks.remote';
+import type { Relation, Role, Task } from "$lib/firestore-schema"
+import { getContext, hasContext, setContext } from "svelte"
+import { firekitCollection, firekitDoc, firekitUser } from "svelte-firekit"
+import { limit, orderBy } from "firebase/firestore"
 
-const APP_STATE_CONTEXT_KEY = Symbol('app-state');
+const context = Symbol()
 
-export type TaskRow = {
-	id: string;
-	task: schema.Task;
-};
+export class App {
+    role = $derived(firekitUser.uid?.split(":")[0] as Role)
+    relation_id = $derived(firekitUser.uid?.split(":")[1])
 
-export type RealtimePatch = {
-	auth?: App.ClientAuthView | null;
-	tasks?: TaskRow[];
-	upsert_task?: TaskRow;
-	remove_task_id?: string;
-};
+    relation = firekitDoc<Relation>(`relations/${this.relation_id}`)
+    /**
+     * one-time paginated feed, initialized lazily by /tasks page
+     */
+    paginated_tasks = $state<ReturnType<typeof firekitCollection<Task & { id: string }>> | null>(null)
+    
+    /**
+     * realtime listener for most recent tasks so new tasks appear immediately
+     */
+    new_tasks = firekitCollection<Task & { id: string }>(
+        `relations/${this.relation_id}/tasks`,
+        [orderBy("created_at", "desc"), limit(20)]
+    )
 
-export type RealtimeSource = {
-	connect: (
-		apply_patch: (patch: RealtimePatch) => void
-	) => void | (() => void | Promise<void>) | Promise<void | (() => void | Promise<void>)>;
-};
+    tasks_bootstrapped = $state(false)
+    tasks_bootstrap_pending = $state(false)
 
-export class AppState {
-	constructor(private auth_state: AuthState) {}
+    tasks = $derived.by(() => {
+        const paginated = this.paginated_tasks?.data ?? []
+        const seen = new Set<string>()
+        const merged = [...this.new_tasks.data, ...paginated].filter((task) => {
+            if (seen.has(task.id)) return false
+            seen.add(task.id)
+            return true
+        })
 
-	get auth() {
-		return this.auth_state.auth;
-	}
+        merged.sort((a, b) => +new Date(b.created_at) - +new Date(a.created_at))
+        return merged
+    })
 
-	tasks = $state<TaskRow[]>([]);
-	tasks_loading = $state(false);
-	tasks_has_more = $state(true);
-	tasks_next_before_id = $state<string | null>(null);
-	tasks_did_initial_load = $state(false);
+    recent_tasks = $derived(this.new_tasks.data)
 
-	private realtime_cleanup: (() => void | Promise<void>) | null = null;
+    tasks_loading = $derived(this.tasks_bootstrap_pending || !!this.paginated_tasks?.loading)
 
-	private dedupe_tasks(items: TaskRow[]): TaskRow[] {
-		const seen = new Set<string>();
-		const out: TaskRow[] = [];
+    tasks_has_more = $derived(this.paginated_tasks?.hasMore ?? false)
 
-		for (const item of items) {
-			if (seen.has(item.id)) continue;
-			seen.add(item.id);
-			out.push(item);
-		}
+    constructor() {
+        $effect(() => {
+            this.relation.setPath(`relations/${this.relation_id}`)
+            this.new_tasks.setPath(`relations/${this.relation_id}/tasks`)
 
-		return out;
-	}
+            this.paginated_tasks?.dispose()
+            this.paginated_tasks = null
 
-	reset_tasks() {
-		this.tasks = [];
-		this.tasks_loading = false;
-		this.tasks_has_more = true;
-		this.tasks_next_before_id = null;
-		this.tasks_did_initial_load = false;
-	}
+            this.tasks_bootstrapped = false
+            this.tasks_bootstrap_pending = false
+        })
+    }
 
-	async logout() {
-		await this.auth_state.logout();
-		this.reset_tasks();
-	}
+    async ensureTasksLoaded() {
+        if (this.tasks_bootstrapped || this.tasks_bootstrap_pending) return
 
-	async load_more_tasks(limit = 20) {
-		if (this.tasks_loading || !this.tasks_has_more) return;
+        this.tasks_bootstrap_pending = true
+        const feed = firekitCollection<Task & { id: string }>(
+            `relations/${this.relation_id}/tasks`,
+            [orderBy("created_at", "desc")]
+        )
 
-		this.tasks_loading = true;
-		const page = await list_tasks({ before_id: this.tasks_next_before_id, limit });
-		this.tasks_loading = false;
+        this.paginated_tasks = feed
+        await feed.setPagination(20)
+        this.tasks_bootstrapped = true
+        this.tasks_bootstrap_pending = false
+    }
 
-		if (!page) {
-			this.tasks_has_more = false;
-			return;
-		}
-
-		this.tasks = this.dedupe_tasks([...this.tasks, ...page.items]);
-		this.tasks_has_more = page.has_more;
-		this.tasks_next_before_id = page.next_before_id;
-		this.tasks_did_initial_load = true;
-	}
-
-	async ensure_tasks_loaded(limit = 20) {
-		if (this.tasks_did_initial_load || this.tasks_loading || !this.tasks_has_more) return;
-		await this.load_more_tasks(limit);
-	}
-
-	replace_tasks(rows: TaskRow[]) {
-		this.tasks = this.dedupe_tasks(rows);
-		this.tasks_did_initial_load = true;
-	}
-
-	upsert_task(row: TaskRow) {
-		this.tasks = this.dedupe_tasks([row, ...this.tasks]);
-		this.tasks_did_initial_load = true;
-	}
-
-	remove_task(task_id: string) {
-		this.tasks = this.tasks.filter((item) => item.id !== task_id);
-	}
-
-	async load_task(id: string) {
-		const cached = this.tasks.find((item) => item.id === id);
-		if (cached) return cached;
-
-		const row = await get_task({ id });
-		if (!row) return null;
-
-		this.upsert_task(row);
-		return row;
-	}
-
-	async mark_task(id: string, completed: boolean) {
-		const ok = await mark_task({ id, completed });
-		if (!ok) return false;
-
-		const row = this.tasks.find((item) => item.id === id);
-		if (row) {
-			this.upsert_task({
-				...row,
-				task: {
-					...row.task,
-					is_completed: completed,
-					marked_at: new Date()
-				}
-			});
-		}
-
-		return true;
-	}
-
-	apply_realtime_patch(patch: RealtimePatch) {
-		if ('auth' in patch) {
-			this.auth_state.set_auth(patch.auth ?? null);
-		}
-
-		if (patch.tasks) {
-			this.replace_tasks(patch.tasks);
-		}
-
-		if (patch.upsert_task) {
-			this.upsert_task(patch.upsert_task);
-		}
-
-		if (patch.remove_task_id) {
-			this.remove_task(patch.remove_task_id);
-		}
-	}
-
-	async connect_realtime(source: RealtimeSource, initial_task_limit = 20) {
-		await this.auth_state.ensure_loaded();
-		await this.ensure_tasks_loaded(initial_task_limit);
-
-		await this.disconnect_realtime();
-		const cleanup = await source.connect((patch) => {
-			this.apply_realtime_patch(patch);
-		});
-
-		this.realtime_cleanup = typeof cleanup === 'function' ? cleanup : null;
-	}
-
-	async disconnect_realtime() {
-		if (!this.realtime_cleanup) return;
-		await this.realtime_cleanup();
-		this.realtime_cleanup = null;
-	}
+    async loadMoreTasks() {
+        await this.paginated_tasks?.loadMore()
+    }
 }
 
-export function init_app_state_context(auth_state: AuthState) {
-	const app_state = new AppState(auth_state);
-	setContext(APP_STATE_CONTEXT_KEY, app_state);
-	return app_state;
-}
+let _app: App | undefined
 
-export function get_app_state() {
-	return getContext<AppState>(APP_STATE_CONTEXT_KEY);
+export function app(): App {
+    if(_app) return _app
+    return _app = new App()
 }

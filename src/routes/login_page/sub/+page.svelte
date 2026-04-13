@@ -1,21 +1,24 @@
 <script>
-	import { get_auth_state } from '$lib/auth.svelte';
-	import { join } from './index.remote';
+	import { join_relation, login } from '$lib/auth.remote';
+	import { add_toast } from '$lib/toast.svelte';
+	import { firekitAuth } from 'svelte-firekit';
 	import Button from '../Button.svelte';
 
-	const auth_state = get_auth_state();
 
 	let join_code = $state('');
 	let name = $state('');
 
 	async function join_btn() {
-		await join({ join_code, name });
+		const token = await join_relation({ join_code, name });
+		if(!token) return add_toast({ body: "Partner not found", state: false })
+		firekitAuth.signInWithCustomToken(token)
 	}
 
-	let recon_code = $state('');
-	async function recon() {
-		await auth_state.reconnect(recon_code, 'sub');
-	}
+	let login_code = $state('');
+	async function on_login() {
+		const token = await login({ login_code, role: "sub" })
+		if(!token) return add_toast({ body: "Login code not found!", state: false })
+		firekitAuth.signInWithCustomToken(token)	}
 </script>
 
 <h1 class="text-2xl font-bold">sub</h1>
@@ -26,5 +29,5 @@
 
 <div class="divider">or</div>
 
-<input type="text" placeholder="login code" bind:value={recon_code} class="input input-xl" />
-<Button title="login" onclick={recon}></Button>
+<input type="text" placeholder="login code" bind:value={login_code} class="input input-xl" />
+<Button title="login" onclick={on_login}></Button>

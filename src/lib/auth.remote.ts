@@ -1,27 +1,68 @@
 import { command, getRequestEvent, query } from "$app/server";
 import z from "zod";
-import { client_view, delete_key, set_key } from "./server/auth";
-import { keys, kv, schema } from "./server/db";
+import { db, auth } from "./server/firebase";
+import { generate_join_code, generate_login_code } from "./server/id";
+import { type Relation, type RelationKeys, role } from "./firestore-schema";
 
-export const auth = query<App.ClientAuthView | null>(() => {
-    const auth = getRequestEvent().locals.auth_view
-    if(!auth) return null;
+export const create_relation = command(z.string(), async (dom_name) => {
+    const relation_id = crypto.randomUUID();
 
-    return client_view(auth.relation, auth.role, auth.relation_id)
-})
+    const relation: Relation = {
+        dom_name,
+        puppyscore: 0,
+        sub_name: "",
+        join_code: generate_join_code(),
+    };
 
-export const logout = command(() => {
-    delete_key()
-    auth().set(null)
-})
+    const keys: RelationKeys = {
+        dom_login_code: generate_login_code(),
+        sub_login_code: generate_login_code(),
+    };
 
-export const reconnect = command(z.object({ code: z.string(), role: schema.role }), async ({ code, role }) => {
-    const relation_id = await kv.get<string>(keys[`relation_from_${role}_recon_code`](code))
-    if(!relation_id.value) return false;
-    const relation = await kv.get<schema.Relation>(keys.relation(relation_id.value));
-    if(!relation.value) return false;
+    const relationRef = db.collection("relations").doc(relation_id);
+    await relationRef.set(relation);
 
-    set_key(relation.value, role)
-    auth().set(client_view(relation.value, role, relation_id.value))
-    return true;
-})
+    const keysRef = db.collection("relation_keys").doc(relation_id);
+    await keysRef.set(keys);
+
+    return auth
+        .createCustomToken(`dom:${relation_id}`);
+});
+
+export const join_relation = command(
+    z.object({ name: z.string(), join_code: z.string() }),
+    async ({ join_code, name }) => {
+        const relation_response = await db.collection("relations")
+            .where("join_code", "==", join_code)
+            .limit(1).get();
+
+        if (relation_response.empty) return false;
+
+        const relation_ref = relation_response.docs[0].ref;
+
+        await relation_ref.set(
+            {
+                sub_name: name,
+                join_code: null,
+            } satisfies Partial<Relation>,
+            { merge: true },
+        );
+
+        return auth
+            .createCustomToken(`sub:${relation_ref.id}`);
+    },
+);
+
+export const login = command(
+    z.object({ login_code: z.string(), role }),
+    async ({ login_code, role }) => {
+        const keys_response = await db.collection("relation_keys")
+            .where(`${role}_login_code`, "==", login_code)
+            .limit(1)
+            .get();
+
+        if (keys_response.empty) return false;
+        return auth
+            .createCustomToken(`${role}:${keys_response.docs[0].id}`);
+    },
+);

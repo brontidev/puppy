@@ -1,28 +1,30 @@
 <script>
-	import { get_auth_state } from '$lib/auth.svelte';
-	import { create_relation } from './index.remote';
+	import { create_relation, login } from '$lib/auth.remote';
+	import { firekitAuth } from 'svelte-firekit';
 	import Button from '../Button.svelte';
-
-	const auth_state = get_auth_state();
+	import { add_toast } from '$lib/toast.svelte';
 
 	let name = $state('');
 
-	async function create_new() {
-		await create_relation(name);
+	async function on_create() {
+		const token = await create_relation(name)
+		firekitAuth.signInWithCustomToken(token)
 	}
 
-	let recon_code = $state('');
-	async function recon() {
-		await auth_state.reconnect(recon_code, 'dom');
+	let login_code = $state('');
+	async function on_login() {
+		const token = await login({ login_code, role: "dom" })
+		if(!token) return add_toast({ body: "Login code not found!", state: false })
+		firekitAuth.signInWithCustomToken(token)
 	}
 </script>
 
 <h1 class="font-bold text-2xl">dom</h1>
 
 <input type="text" placeholder="name" bind:value={name} class="input input-xl" />
-<Button title="create new" onclick={create_new}></Button>
+<Button title="create new" onclick={on_create}></Button>
 
 <div class="divider">or</div>
 
-<input type="text" placeholder="login code" bind:value={recon_code} class="input input-xl" />
-<Button title="login" onclick={recon}></Button>
+<input type="text" placeholder="login code" bind:value={login_code} class="input input-xl" />
+<Button title="login" onclick={on_login}></Button>

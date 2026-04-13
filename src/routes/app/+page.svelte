@@ -1,37 +1,38 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import { get_app_state } from './app.svelte';
-	import { onMount } from 'svelte';
+	import { app } from './app.svelte';
 	import TaskCard from './tasks/TaskCard.svelte';
-	import { puppyscore } from './app.remote';
 
-	const app_state = get_app_state();
+	let relation_loading = $derived(app().relation.loading);
+	let puppyscore = $derived(app().relation.data?.puppyscore)
 
 	const tasks = $derived(
-		app_state.tasks
-			.filter((task) => app_state.auth.current?.role == 'dom' || !task.task.marked_at)
+		app().recent_tasks
+			.filter((task) => app().role == 'dom' || !task.marked_at)
 			.slice(0, 6)
 	);
+	const tasks_loading = $derived(app().new_tasks.loading);
 
-	onMount(() => {
-		void app_state.ensure_tasks_loaded(6);
-	});
 </script>
 
 <div class="flex h-full flex-col gap-y-4 p-4">
 	<div class="card h-fit bg-base-300 p-4 pb-10">
 		<h1 class="opacity-60">puppyscore™</h1>
-		<div class="flex flex-row items-center justify-center">
+		<div class="flex min-h-32 flex-row items-center justify-center">
+			{#if relation_loading}
+				<div class="text-sm opacity-70">loading score...</div>
+			{:else}
 			<div
 				class={[
 					'card flex size-30 items-center justify-center rounded-full text-4xl',
-					(await puppyscore()) == 0 && 'bg-neutral text-neutral-content',
-					(await puppyscore()) > 0 && 'bg-success text-success-content',
-					(await puppyscore()) < 0 && 'bg-error text-error-content'
+					puppyscore == 0 && 'bg-neutral text-neutral-content',
+					puppyscore > 0 && 'bg-success text-success-content',
+					puppyscore < 0 && 'bg-error text-error-content'
 				]}
 			>
-				{await puppyscore()}
+				{puppyscore}
 			</div>
+			{/if}
 		</div>
 	</div>
 	<div class="card grow bg-base-300 p-4 pb-10">
@@ -41,7 +42,7 @@
 		</div>
 
 		<div class="mt-3 flex flex-col gap-2">
-			{#if !app_state.tasks_did_initial_load && app_state.tasks_loading}
+			{#if tasks_loading}
 				<div class="py-2 text-sm opacity-70">loading tasks...</div>
 			{:else if tasks.length === 0}
 				<div class="py-2 text-sm opacity-70">no uncompleted tasks</div>

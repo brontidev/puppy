@@ -1,16 +1,19 @@
 <script lang="ts">
-	import { get_app_state } from './app.svelte';
-	import { edit_name } from './app.remote';
+	import type { Relation, Role } from '$lib/schema';
+	import { firekitMutations } from 'svelte-firekit';
+	import { app } from './app.svelte';
 
-	const app_state = get_app_state();
+	let close: HTMLFormElement;
+	let name_key = $derived(`${app().role}_name`) as `${Role}_name`;
+	// svelte-ignore state_referenced_locally
+	let name = $state(app().relation.data?.[name_key] ?? '');
 
-    let close: HTMLFormElement
-	let name = $state(app_state.auth.current?.relation[`${app_state.auth.current!.role}_name`] ?? '');
-
-    function submit() {
-        edit_name(name)
-        close.submit()
-    }
+	function submit() {
+		firekitMutations.update<Relation>(app().relation.ref!, {
+			[name_key]: name
+		});
+		close.submit();
+	}
 </script>
 
 <h3 class="text-lg font-bold">edit name</h3>

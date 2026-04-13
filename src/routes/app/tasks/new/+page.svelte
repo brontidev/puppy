@@ -1,16 +1,36 @@
-<script>
+<script lang="ts">
 	import { resolve } from '$app/paths';
-	import { create_task } from '../tasks.remote';
+	import { goto } from '$app/navigation';
+	import { add_toast } from '$lib/toast.svelte';
+	import { app } from '../../app.svelte';
+	import { create_task } from '../task.remote';
 	let name = $state('');
 	let bounty = $state(1);
 	let done = $state(false);
+	let creating = $state(false);
+	let error = $state('');
 
-	function create() {
-		create_task({
-            bounty,
-            done,
-            name
-        });
+	async function create() {
+		if (!name.trim() || creating) return;
+
+		error = '';
+		creating = true;
+
+		try {
+			await create_task({
+				relation_id: app().relation_id!,
+				bounty,
+				done,
+				name: name.trim()
+			});
+
+			add_toast({ body: 'task created', state: true });
+			await goto(resolve('/app/tasks'));
+		} catch (e) {
+			error = e instanceof Error ? e.message : 'failed to create task';
+		} finally {
+			creating = false;
+		}
 	}
 </script>
 
@@ -31,6 +51,12 @@
 			<input type="checkbox" bind:checked={done} class="checkbox" />
 		</label>
 
-		<button onclick={create} class="btn mt-2 btn-soft">create</button>
+		{#if error}
+			<div class="mt-2 text-sm text-error">{error}</div>
+		{/if}
+
+		<button onclick={create} disabled={creating || !name.trim()} class="btn mt-2 btn-soft">
+			{creating ? 'creating...' : 'create'}
+		</button>
 	</div>
 </div>

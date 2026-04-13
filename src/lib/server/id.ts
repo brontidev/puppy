@@ -7,6 +7,6 @@ export function generate_token(): string {
 	return crypto.getRandomValues(new Uint8Array(24)).toHex();
 }
 
-export function generate_recon_code(): string {
+export function generate_login_code(): string {
     return `${generateSlug(2)}-${crypto.getRandomValues(new Uint8Array(1)).toString().padStart(3, '0')}`
 }
