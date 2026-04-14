@@ -9,10 +9,6 @@
 	import { FirebaseApp } from 'svelte-firekit';
 	import { firebaseConfig } from '$lib/firebase';
 
-	import { registerSW } from 'virtual:pwa-register';
-
-	registerSW({ immediate: true });
-
 	onNavigate((navigation) => {
 		if (!document.startViewTransition) return;
 

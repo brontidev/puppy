@@ -1,12 +1,55 @@
 /// <reference lib="webworker" />
 declare const self: ServiceWorkerGlobalScope;
 
-import { precacheAndRoute } from 'workbox-precaching';
-
 console.log('defined sw');
 
-// Precache static assets
-precacheAndRoute(self.__WB_MANIFEST || []);
+const CACHE_NAME = 'puppy-shell-v1';
+const SHELL_URLS = ['/', '/manifest.webmanifest', '/image.png'];
+
+self.addEventListener('install', (event) => {
+	event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)));
+});
+
+self.addEventListener('activate', (event) => {
+	event.waitUntil(
+		Promise.all([
+			self.clients.claim(),
+			caches.keys().then((keys) =>
+				Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+			)
+		])
+	);
+});
+
+async function cacheFirst(request: Request) {
+	const cached = await caches.match(request);
+	if (cached) return cached;
+
+	const response = await fetch(request);
+	if (response.ok) {
+		const cache = await caches.open(CACHE_NAME);
+		cache.put(request, response.clone());
+	}
+	return response;
+}
+
+self.addEventListener('fetch', (event) => {
+	if (event.request.method !== 'GET') return;
+
+	const url = new URL(event.request.url);
+	if (url.origin !== self.location.origin) return;
+
+	if (event.request.mode === 'navigate') {
+		event.respondWith(
+			fetch(event.request).catch(async () => (await caches.match('/')) ?? Response.error())
+		);
+		return;
+	}
+
+	if (['script', 'style', 'image', 'font'].includes(event.request.destination)) {
+		event.respondWith(cacheFirst(event.request));
+	}
+});
 
 self.addEventListener('message', (event) => {
 	if (event.data && event.data.type === 'SKIP_WAITING') {

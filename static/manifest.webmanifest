@@ -1,0 +1,25 @@
+{
+	"name": "puppy",
+	"short_name": "puppy",
+	"description": "puppy app",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"orientation": "portrait-primary",
+	"theme_color": "oklch(48% 0.243 264.376)",
+	"background_color": "#ffffff",
+	"icons": [
+		{
+			"src": "/image.png",
+			"sizes": "192x192",
+			"type": "image/png",
+			"purpose": "any maskable"
+		},
+		{
+			"src": "/image.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "any maskable"
+		}
+	]
+}

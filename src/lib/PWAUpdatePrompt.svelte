@@ -2,49 +2,62 @@
 	import { onMount } from 'svelte';
 
 	let showUpdatePrompt = $state(false);
+	let registration: ServiceWorkerRegistration | null = null;
+	let applying = $state(false);
 
 	onMount(() => {
-		// Listen for service worker updates
-		if ('serviceWorker' in navigator) {
-			let hasUpdated = false;
+		if (!('serviceWorker' in navigator)) return;
 
-			const checkForUpdates = async () => {
-				const registration = await navigator.serviceWorker.getRegistration();
-				if (registration) {
-					// Check for updates every 30 seconds
-					setInterval(() => {
-						registration.update();
-					}, 30000);
+		let refreshing = false;
+		navigator.serviceWorker.addEventListener('controllerchange', () => {
+			if (refreshing) return;
+			refreshing = true;
+			window.location.reload();
+		});
 
-					// Listen for new service worker
-					registration.addEventListener('updatefound', () => {
-						const newWorker = registration.installing;
-						if (newWorker) {
-							newWorker.addEventListener('statechange', () => {
-								if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-									// New SW installed and there's an old one, show prompt
-									hasUpdated = true;
-									showUpdatePrompt = true;
-								}
-							});
-						}
-					});
-				}
-			};
-
-			if (document.readyState === 'loading') {
-				document.addEventListener('DOMContentLoaded', checkForUpdates);
-			} else {
-				checkForUpdates();
+		const wireRegistration = (reg: ServiceWorkerRegistration) => {
+			registration = reg;
+			if (registration.waiting) {
+				showUpdatePrompt = true;
 			}
-		}
+
+			registration.addEventListener('updatefound', () => {
+				const worker = registration?.installing;
+				if (!worker) return;
+
+				worker.addEventListener('statechange', () => {
+					if (worker.state === 'installed' && navigator.serviceWorker.controller) {
+						showUpdatePrompt = true;
+					}
+				});
+			});
+		};
+
+		navigator.serviceWorker
+			.register('/service-worker.js', { type: 'module' })
+			.then((reg) => {
+				wireRegistration(reg);
+				setInterval(() => {
+					void reg.update();
+				}, 30000);
+			})
+			.catch((error) => {
+				console.error('Failed to register service worker:', error);
+			});
 	});
 
-	const handleReload = () => {
-		window.location.reload();
+	const handleApplyUpdate = async () => {
+		if (!registration) return;
+		applying = true;
+
+		if (!registration.waiting) {
+			await registration.update();
+		}
+
+		registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
 	};
 
-	const handleDismiss = () => {
+	const handleLater = () => {
 		showUpdatePrompt = false;
 	};
 </script>
@@ -52,22 +65,24 @@
 {#if showUpdatePrompt}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="alert">
 		<div class="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
-			<h2 class="mb-2 text-2xl font-bold">Update Available</h2>
+			<h2 class="mb-2 text-2xl font-bold">update available</h2>
 			<p class="mb-6 text-gray-600">
-				A new version of Puppy is available. Reload to get the latest features!
+				a new version of the puppy app is ready. apply update to activate the new service worker.
 			</p>
 			<div class="flex gap-3">
 				<button
 					class="flex-1 rounded-lg bg-gray-200 px-4 py-2 font-semibold text-gray-800 hover:bg-gray-300"
-					onclick={handleDismiss}
+					onclick={handleLater}
+					disabled={applying}
 				>
-					Later
+					later
 				</button>
 				<button
 					class="flex-1 rounded-lg bg-blue-500 px-4 py-2 font-semibold text-white hover:bg-blue-600"
-					onclick={handleReload}
+					onclick={handleApplyUpdate}
+					disabled={applying}
 				>
-					Reload
+					{applying ? 'applying...' : 'update now'}
 				</button>
 			</div>
 		</div>
