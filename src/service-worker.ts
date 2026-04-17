@@ -1,54 +1,91 @@
 /// <reference lib="webworker" />
+/// <reference types="@sveltejs/kit" />
+
 declare const self: ServiceWorkerGlobalScope;
 
-console.log('defined sw');
+import { build, files, version } from '$service-worker';
 
-const CACHE_NAME = 'puppy-shell-v1';
-const SHELL_URLS = ['/', '/manifest.webmanifest', '/image.png'];
+// Create a unique cache name for this deployment
+const CACHE = `cache-${version}`;
+
+const ASSETS = [
+    ...build, // the app itself
+    ...files // everything in `static`
+];
 
 self.addEventListener('install', (event) => {
-	event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)));
+    // Create a new cache and add all files to it
+    async function addFilesToCache() {
+        const cache = await caches.open(CACHE);
+        await cache.addAll(ASSETS);
+    }
+
+    console.log('installing service worker for version', version);
+    console.log('caching assets', ASSETS);
+    console.log('caching build', build);
+
+    event.waitUntil(addFilesToCache());
 });
 
 self.addEventListener('activate', (event) => {
-	event.waitUntil(
-		Promise.all([
-			self.clients.claim(),
-			caches.keys().then((keys) =>
-				Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-			)
-		])
-	);
+    // Remove previous cached data from disk
+    async function deleteOldCaches() {
+        for (const key of await caches.keys()) {
+            if (key !== CACHE) await caches.delete(key);
+        }
+    }
+
+    event.waitUntil(deleteOldCaches());
 });
 
-async function cacheFirst(request: Request) {
-	const cached = await caches.match(request);
-	if (cached) return cached;
-
-	const response = await fetch(request);
-	if (response.ok) {
-		const cache = await caches.open(CACHE_NAME);
-		cache.put(request, response.clone());
-	}
-	return response;
-}
-
 self.addEventListener('fetch', (event) => {
-	if (event.request.method !== 'GET') return;
+    // ignore POST requests etc
+    if (event.request.method !== 'GET') return;
 
-	const url = new URL(event.request.url);
-	if (url.origin !== self.location.origin) return;
+    async function respond() {
+        const url = new URL(event.request.url);
+        const cache = await caches.open(CACHE);
 
-	if (event.request.mode === 'navigate') {
-		event.respondWith(
-			fetch(event.request).catch(async () => (await caches.match('/')) ?? Response.error())
-		);
-		return;
-	}
+        // `build`/`files` can always be served from the cache
+        if (ASSETS.includes(url.pathname)) {
+            const response = await cache.match(url.pathname);
 
-	if (['script', 'style', 'image', 'font'].includes(event.request.destination)) {
-		event.respondWith(cacheFirst(event.request));
-	}
+            if (response) {
+                return response;
+            }
+        }
+
+        // for everything else, try the network first, but
+        // fall back to the cache if we're offline
+        try {
+            const response = await fetch(event.request);
+
+            // if we're offline, fetch can return a value that is not a Response
+            // instead of throwing - and we can't pass this non-Response to respondWith
+            if (!(response instanceof Response)) {
+                throw new Error('invalid response from fetch');
+            }
+
+            if (response.status === 200) {
+                cache.put(event.request, response.clone());
+            }
+
+            return response;
+        } catch (err) {
+            const response = await cache.match(event.request);
+
+            if (response) {
+                console.log(`Returning from Cache`, event.request.url);
+                return response;
+            }
+
+            // if there's no cache, then just error out
+            // as there is nothing we can do to respond to this request
+            throw err;
+        }
+    }
+
+    event.respondWith(respond());
 });
 
 self.addEventListener('message', (event) => {
