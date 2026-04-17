@@ -9,11 +9,15 @@
 		if (!('serviceWorker' in navigator)) return;
 
 		let refreshing = false;
-		navigator.serviceWorker.addEventListener('controllerchange', () => {
+		let updateInterval: ReturnType<typeof setInterval> | null = null;
+
+		const handleControllerChange = () => {
 			if (refreshing) return;
 			refreshing = true;
 			window.location.reload();
-		});
+		};
+
+		navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
 		const wireRegistration = (reg: ServiceWorkerRegistration) => {
 			registration = reg;
@@ -33,17 +37,30 @@
 			});
 		};
 
+		// SvelteKit registers src/service-worker.ts automatically in production.
+		// We only need to wire into the existing registration here.
 		navigator.serviceWorker
-			.register('/service-worker.js', { type: 'module' })
+			.getRegistration()
 			.then((reg) => {
+				if (!reg) return;
 				wireRegistration(reg);
-				setInterval(() => {
+
+				updateInterval = setInterval(() => {
 					void reg.update();
 				}, 30000);
 			})
 			.catch((error) => {
-				console.error('Failed to register service worker:', error);
+				console.error('Failed to read service worker registration:', error);
 			});
+
+		void navigator.serviceWorker.ready.then(wireRegistration);
+
+		return () => {
+			navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+			if (updateInterval) {
+				clearInterval(updateInterval);
+			}
+		};
 	});
 
 	const handleApplyUpdate = async () => {
