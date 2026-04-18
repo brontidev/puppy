@@ -5,8 +5,9 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 let firebaseApp: App;
-
+console.log("FIREBASE_SERVICE_ACCOUNT:", env.FIREBASE_SERVICE_ACCOUNT ? "present" : "missing")
 const serviceAccount: ServiceAccount = JSON.parse(atob(env.FIREBASE_SERVICE_ACCOUNT));
+console.log("projectid:", serviceAccount.projectId)
 
 try {
 	firebaseApp = getApp();
