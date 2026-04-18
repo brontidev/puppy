@@ -96,8 +96,9 @@ self.addEventListener('message', (event) => {
 
 // Handle push notifications
 self.addEventListener('push', (event) => {
-	if (event.data) {
+    if (event.data) {
 		const data = event.data.json();
+        console.log(event, data)
 		const options: NotificationOptions = {
 			body: data.body,
 			icon: '/image.png',
