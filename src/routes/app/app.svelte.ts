@@ -2,12 +2,14 @@ import type { Relation, Role, Task } from '$lib/firestore-schema';
 import { getContext, hasContext, setContext } from 'svelte';
 import { firekitCollection, firekitDoc, firekitUser } from 'svelte-firekit';
 import { limit, orderBy } from 'firebase/firestore';
+import { login_code } from '$lib/auth.remote';
 
 const context = Symbol();
 
 export class App {
 	role = $derived(firekitUser.uid?.split(':')[0] as Role);
 	relation_id = $derived(firekitUser.uid?.split(':')[1]);
+	login_code = $derived(this.relation_id && login_code({ relation_id: this.relation_id, role: this.role }))
 
 	relation = firekitDoc<Relation>(`relations/${this.relation_id}`);
 	/**

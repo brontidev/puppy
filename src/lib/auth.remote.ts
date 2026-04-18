@@ -68,3 +68,12 @@ export const login = command(
 		return auth.createCustomToken(`${role}:${keys_response.docs[0].id}`);
 	}
 );
+
+export const login_code = query(z.object({ relation_id: z.string(), role }), async ({ relation_id, role }) => {
+	let keys_response = await db.collection('relation_keys').doc(relation_id).get();
+	if (!keys_response.exists) return null;
+
+	let keys = keys_response.data() as RelationKeys
+
+	return keys[`${role}_login_code`]
+})

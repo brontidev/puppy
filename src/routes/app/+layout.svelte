@@ -21,7 +21,7 @@
 	let fcm_token = $state<string | null>(null);
 	let notifications_enabled = $state(false);
 
-	let login_code = '<not implemented>';
+	let login_code = $derived(await app().login_code);
 	let join_code = $derived(app().relation.data?.join_code);
 	let app_version = $state('');
 	type PersistedNotificationState = {
