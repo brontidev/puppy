@@ -4,6 +4,8 @@ import { auth, db } from './server/firebase';
 import { generate_join_code, generate_login_code } from './server/id';
 import { type Relation, type RelationKeys, role } from './firestore-schema';
 
+console.log("hi")
+
 export const create_relation = command(z.string(), async (dom_name) => {
 	const relation_id = crypto.randomUUID();
 
