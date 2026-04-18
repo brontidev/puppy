@@ -96,20 +96,31 @@ self.addEventListener('message', (event) => {
 
 // Handle push notifications
 self.addEventListener('push', (event) => {
-    if (event.data) {
-		const data = event.data.json();
-        console.log(event, data)
-		const options: NotificationOptions = {
-			body: data.body,
-			icon: '/image.png',
-			badge: '/image.png',
-			tag: 'task-notification',
-			requireInteraction: true,
-			data: data.data || {}
-		};
+    if (!event.data) return;
 
-		event.waitUntil(self.registration.showNotification(data.title || 'puppy', options));
-	}
+    const payload = event.data.json();
+    const data =
+        payload && typeof payload === 'object' && payload.data && typeof payload.data === 'object'
+            ? payload.data
+            : payload;
+
+    console.log('push payload', payload);
+
+    const options: NotificationOptions = {
+        body: data.body || payload.body,
+        icon: '/image.png',
+        badge: '/image.png',
+        tag: 'task-notification',
+        requireInteraction: true,
+        data: {
+            relationId: data.relationId || payload.relationId,
+            type: data.type || payload.type
+        }
+    };
+
+    event.waitUntil(
+        self.registration.showNotification(data.title || payload.title || 'puppy', options)
+    );
 });
 
 // Handle notification clicks

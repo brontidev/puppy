@@ -30,27 +30,10 @@ export const sendTaskNotification = async (relationId: string, title: string, bo
 						relationId,
 						type: 'task_update'
 					},
-					android: {
-						priority: 'high',
-						notification: {
-							sound: 'default',
-							channelId: 'task_notifications'
-						}
-					},
-					apns: {
-						headers: {
-							'apns-priority': '10'
-						},
-						payload: {
-							aps: {
-								sound: 'default',
-								badge: 1
-							}
-						}
-					},
 					webpush: {
 						headers: {
-							TTL: '86400' // 24 hours
+							TTL: '86400', // 24 hours
+							Urgency: 'high'
 						}
 					}
 				});

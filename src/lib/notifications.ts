@@ -3,17 +3,24 @@ import { firebaseService } from 'svelte-firekit';
 import { store_fcm_token } from '../routes/app/notifications.remote';
 
 let messaging: Messaging | null = null;
+let onMessageUnsubscribe: (() => void) | null = null;
+
+const ensureMessaging = async () => {
+	if (messaging) return messaging;
+	messaging = (await firebaseService.getMessagingInstance())!;
+	return messaging;
+};
 
 export const initMessaging = async (relationId?: string) => {
 	try {
-		messaging = (await firebaseService.getMessagingInstance())!;
+		const messagingInstance = await ensureMessaging();
 		const registration = await navigator.serviceWorker.ready;
 
 		// Request permission
 		const permission = await Notification.requestPermission();
 		if (permission === 'granted') {
 			// Get FCM token
-			const token = await getToken(messaging, {
+			const token = await getToken(messagingInstance, {
 				serviceWorkerRegistration: registration,
 				vapidKey:
 					'BHoAU8Oy2CL3cVyV6ztE9RX34xKl7VpV8PNpOJEIHt5Qd4_PtB7AzigpOJIDTqoCLO-r-bt2SMcZ9gQbrt8Nchw'
@@ -35,11 +42,12 @@ export const initMessaging = async (relationId?: string) => {
 	return null;
 };
 
-export const listenForMessages = () => {
-	if (!messaging) return;
+export const listenForMessages = async () => {
+	const messagingInstance = await ensureMessaging();
 
-	onMessage(messaging, (payload) => {
-		console.log(payload)
+	onMessageUnsubscribe?.();
+	onMessageUnsubscribe = onMessage(messagingInstance, (payload) => {
+		console.log('foreground fcm payload', payload);
 		const notificationTitle = payload.data?.title || payload.notification?.title || 'puppy';
 		const notificationOptions = {
 			body: payload.data?.body || payload.notification?.body,
