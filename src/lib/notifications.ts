@@ -39,6 +39,7 @@ export const listenForMessages = () => {
 	if (!messaging) return;
 
 	onMessage(messaging, (payload) => {
+		console.log(payload)
 		const notificationTitle = payload.data?.title || payload.notification?.title || 'puppy';
 		const notificationOptions = {
 			body: payload.data?.body || payload.notification?.body,
