@@ -35,11 +35,11 @@ export const mark_task = command(
 		const notificationBody =
 			taskData.bounty >= 0
 				? mark
-					? `u earned ${points_added} for doing ${taskData.name}`
-					: `u lost ${-points_added} for not doing ${taskData.name}`
+					? `u earned ${points_added} for completing "${taskData.name}"`
+					: `u lost ${-points_added} for not doing "${taskData.name}"`
 				: mark
-					? `u lost ${points_added} for doing ${taskData.name}`
-					: `u earned ${-points_added} for not doing ${taskData.name}`;
+					? `u lost ${points_added} for completing "${taskData.name}"`
+					: `u earned ${-points_added} for not doing "${taskData.name}"`;
 		await sendTaskNotification(relation_id, notificationTitle, notificationBody);
 	}
 );
@@ -78,8 +78,8 @@ export const create_task = command(
 		// Send notification
 		await sendTaskNotification(
 			relation_id,
-			'New Task Created! 📝',
-			`"${name}" assigned with ${bounty} bounty`
+			done ? (bounty >= 0 ? `good puppyyyy!!`:`bad puppy..`) : 'new task!',
+			done ? (bounty >= 0 ? `u got awarded ${bounty} points for "${name}"!`:`u got punished ${-bounty} points for "${name}"!`) : `"${name}" assigned with ${bounty} bounty`
 		);
 	}
 );
