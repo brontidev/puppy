@@ -3,7 +3,7 @@ import z from 'zod';
 import { ulid } from '@std/ulid';
 import type { Task } from '$lib/firestore-schema';
 import { db } from '$lib/server/firebase';
-import { increment } from 'firebase/firestore';
+import { FieldValue } from 'firebase-admin/firestore';
 import { sendTaskNotification } from '$lib/server/notifications';
 
 export const mark_task = command(
@@ -27,7 +27,7 @@ export const mark_task = command(
 			.collection('relations')
 			.doc(relation_id)
 			.update({
-				puppyscore: increment(points_added)
+				puppyscore: FieldValue.increment(points_added) // increment(points_added)
 			});
 
 		// Send notification
@@ -69,7 +69,7 @@ export const create_task = command(
 				.collection('relations')
 				.doc(relation_id)
 				.update({
-					puppyscore: increment(task.bounty)
+					puppyscore: FieldValue.increment(task.bounty)
 				});
 		}
 
