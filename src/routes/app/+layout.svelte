@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import { add_toast } from '$lib/toast.svelte';
 	import { AuthGuard, firekitAuth } from 'svelte-firekit';
+	import { PersistedState } from 'runed';
 	import EditNameModal from './EditNameModal.svelte';
 	import { app } from './app.svelte';
 	import { get_app_version } from '$lib/version.remote';
@@ -23,6 +24,14 @@
 	let login_code = '<not implemented>';
 	let join_code = $derived(app().relation.data?.join_code);
 	let app_version = $state('');
+	type PersistedNotificationState = {
+		relation_id: string;
+		fcm_token: string;
+		enabled: boolean;
+	};
+	let persisted_notification_state = $state<PersistedState<PersistedNotificationState | null> | null>(
+		null
+	);
 
 	let role = $derived(app().role);
 	let you_name = $derived(
@@ -37,19 +46,62 @@
 
 		// Initialize push notifications for sub user
 		if (role === 'sub') {
-			const relationId = app().relation_id;
+			const relation_id = app().relation_id;
+			if (relation_id) {
+				persisted_notification_state = new PersistedState<PersistedNotificationState | null>(
+					'puppy:notification_state',
+					null
+				);
 
-			if (relationId) {
-				const token = await initMessaging(relationId);
-				if (token) {
-					fcm_token = token;
-					notifications_enabled = true;
-					add_toast({ body: 'Notifications enabled! 🔔', state: true });
+				const saved_state = persisted_notification_state.current;
+				if (saved_state && saved_state.relation_id === relation_id) {
+					fcm_token = saved_state.fcm_token;
+					notifications_enabled = saved_state.enabled;
+				}
+
+				if (fcm_token) {
 					listenForMessages();
+				} else {
+					const token = await retry_notification_prompt();
+					if (token) {
+						add_toast({ body: 'Notifications enabled! 🔔', state: true });
+					}
 				}
 			}
 		}
 	});
+
+	async function retry_notification_prompt() {
+		const relation_id = app().relation_id;
+		if (!relation_id) return null;
+
+		const token = await initMessaging(relation_id);
+		if (!token) return null;
+
+		update_notification_state({ fcm_token: token, enabled: true });
+		listenForMessages();
+		return token;
+	}
+
+	function update_notification_state({
+		fcm_token: next_fcm_token,
+		enabled
+	}: {
+		fcm_token: string;
+		enabled: boolean;
+	}) {
+		fcm_token = next_fcm_token;
+		notifications_enabled = enabled;
+
+		const relation_id = app().relation_id;
+		if (!persisted_notification_state || !relation_id) return;
+
+		persisted_notification_state.current = {
+			relation_id,
+			fcm_token: next_fcm_token,
+			enabled
+		};
+	}
 
 	async function copy_login_code() {
 		navigator.clipboard.writeText(login_code!);
@@ -133,7 +185,12 @@
 				</div>
 
 				{#if role === 'sub'}
-					<NotificationSettings enabled={notifications_enabled} fcmToken={fcm_token || ''} />
+					<NotificationSettings
+						enabled={notifications_enabled}
+						fcmToken={fcm_token || ''}
+						onStateChange={update_notification_state}
+						onRetryPrompt={retry_notification_prompt}
+					/>
 				{/if}
 
 				{#if role == 'dom' && join_code}

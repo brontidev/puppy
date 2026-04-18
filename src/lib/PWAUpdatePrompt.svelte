@@ -84,7 +84,7 @@
 		<div class="w-full max-w-sm rounded-lg bg-white p-6 shadow-lg">
 			<h2 class="mb-2 text-2xl font-bold">update available</h2>
 			<p class="mb-6 text-gray-600">
-				a new version of the puppy app is ready. apply update to activate the new service worker.
+				a new version of the puppy app is ready. please be a good puppy and update it
 			</p>
 			<div class="flex gap-3">
 				<button
