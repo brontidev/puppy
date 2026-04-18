@@ -24,11 +24,9 @@ export const sendTaskNotification = async (relationId: string, title: string, bo
 			try {
 				const response = await messaging.send({
 					token,
-			notification: {
-				title,
-				body
-			},
 					data: {
+						title,
+						body,
 						relationId,
 						type: 'task_update'
 					},
