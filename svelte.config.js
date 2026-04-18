@@ -11,7 +11,7 @@ const config = {
 	},
 	kit: {
 		adapter: adapter({
-			runtime: "experimental_bun1.x"
+			runtime: "nodejs24.x"
 		}),
 		experimental: {
 			remoteFunctions: true
